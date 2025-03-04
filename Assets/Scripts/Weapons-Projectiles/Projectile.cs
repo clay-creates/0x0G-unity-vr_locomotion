@@ -6,6 +6,7 @@ public class Projectile : MonoBehaviour
     public float lifetime = 5f;
     public int damage = 10;
     public GameObject impactVFX;
+    public AudioClip impactSound;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()

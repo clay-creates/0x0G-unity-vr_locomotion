@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class Gun : MonoBehaviour
 {
@@ -15,38 +17,63 @@ public class Gun : MonoBehaviour
     public AudioClip fireSound;
     public AudioClip reloadSound;
 
+    [Header("InputActions")]
+    public InputActionProperty fireAction;
+    public InputActionProperty reloadAction;
+
+    [Header("UI")]
+    public Slider reloadSlider;
+
     private int currentAmmo;
     private bool isReloading = false;
     private AudioSource audioSource;
+
+    private void OnEnable()
+    {
+        fireAction.action.Enable();
+        fireAction.action.performed += ctx => TryFire();
+        reloadAction.action.Enable();
+        reloadAction.action.performed += ctx => StartCoroutine(Reload());
+    }
+
+    private void OnDisable()
+    {
+        fireAction.action.Disable();
+        reloadAction.action.Disable();
+    }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         currentAmmo = magazineSize;
         audioSource = GetComponent<AudioSource>();
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        if (isReloading) return;
-
-        if (Input.GetKeyDown("Fire") && currentAmmo > 0)
+        if (reloadSlider != null )
         {
-            Shoot();
-        }
-        else if (Input.GetKeyDown(KeyCode.R)) // Manual reload
-        {
-            StartCoroutine(Reload());
+            reloadSlider.gameObject.SetActive(false);
         }
     }
 
-    void Shoot()
+    private void TryFire()
     {
+        if (!isReloading || currentAmmo <= 0) return;
+
+        Shoot();
         currentAmmo--;
 
-        // Spawn Projectile
-        GameObject bullet = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+        if (currentAmmo <= 0)
+        {
+            StartCoroutine(Reload()); // Auto reload when empty
+        }
+    }
+
+    public void Shoot()
+    {
+        if (projectilePrefab != null && firePoint != null)
+        {
+            // Spawn Projectile
+            GameObject bullet = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+        }
 
         // Fire VFX
         if (fireVFX)
@@ -59,15 +86,9 @@ public class Gun : MonoBehaviour
         {
             audioSource.PlayOneShot(fireSound);
         }
-
-        // Auto reload if mag empty
-        if (currentAmmo <= 0)
-        {
-            StartCoroutine(Reload());
-        }
     }
 
-    IEnumerator Reload()
+    public IEnumerator Reload()
     {
         isReloading = true;
         Debug.Log("Reloading...");
@@ -77,9 +98,29 @@ public class Gun : MonoBehaviour
             audioSource.PlayOneShot(reloadSound);
         }
 
-        yield return new WaitForSeconds(reloadTime);
+        if (reloadSlider != null)
+        {
+            reloadSlider.gameObject.SetActive(true);
+            reloadSlider.value = 0;
+        }
+
+        float elapsedTime = 0f;
+        while (elapsedTime < reloadTime)
+        {
+            elapsedTime += Time.deltaTime;
+            if (reloadSlider != null)
+            {
+                reloadSlider.value = elapsedTime / reloadTime;
+            }
+            yield return null;
+        }
 
         currentAmmo = magazineSize;
         isReloading = false;
+
+        if (reloadSlider != null)
+        {
+            reloadSlider.gameObject.SetActive(false);
+        }
     }
 }
